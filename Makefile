@@ -15,21 +15,19 @@ RUNDIR = run/$(DIST)
 LIBDIR = libs
 
 # Libraries to include
-LIBS = $(addprefix $(LIBDIR)/,\
-	libft\
-)
+LIBS = libft
+LIBA = $(LIBS:%=$(LIBDIR)/%.a)
+LDLIBS = $(LIBA:$(LIBDIR)/lib%.a=-l%)
 
 # Flags
-CFLAGS = -Wall -Wextra -Werror -DOCB_DIST=$(DIST) -I$(INCDIR) $(LIBS:%=-I%/includes)
+CFLAGS = -Wall -Wextra -Werror -DOCB_DIST=$(DIST) -I$(INCDIR) $(LIBS:%=-I$(LIBDIR)/%/includes)
 DFLAGS = -MT $@ -MMD -MP -MF $(OBJDIR)/$*.d
-LFLAGS = $(LIBS:%=-L%) $(LIBS:$(LIBDIR)/lib%=-l%)
+LFLAGS = -L$(LIBDIR)
 
 ifeq ($(DIST), debug)
 	CFLAGS += -g3 -fsanitize=address -fsanitize=undefined# -fsanitize=leak
 	LFLAGS += -g3 -fsanitize=address -fsanitize=undefined# -fsanitize=leak
 endif
-
-ARCS = $(LIBS:%=%/%.a)
 
 SRCS = $(addprefix $(SRCDIR)/,\
 	main.c\
@@ -42,13 +40,13 @@ DEPS = $(OBJS:.o=.d)
 COMPILE.c = $(CC) $(DFLAGS) $(CFLAGS) -c
 COMPILE.o = $(LD) $(LFLAGS)
 
-RUN = $(BINDIR)/$(NAME) md5
-
-# Libraries
-%.a: $(LIBDIR)/%/
-	make -C $< NAME=$@
+RUN = $(BINDIR)/$(NAME) md5 -s "foo"
 
 all: $(BINDIR)/$(NAME)
+
+# Libraries
+$(LIBA): $(LIBDIR)/%.a: $(LIBDIR)/%/
+	make -C $< NAME=../$(notdir $@)
 
 # Directories
 $(OBJDIR) $(BINDIR):
@@ -66,17 +64,20 @@ $(DEPS): $(OBJDIR)/%.d:
 include $(wildcard $(DEPS))
 
 # Binaries
-$(BINDIR)/$(NAME): $(OBJS) | $(BINDIR)
+$(BINDIR)/$(NAME): $(OBJS) | $(BINDIR) $(LIBA)
 	@echo "LD $@"
-	$(COMPILE.o) $^ -o $@
+	$(COMPILE.o) $^ -o $@ $(LDLIBS)
 
 clean:
 	@echo "RM $(OBJDIR)"
 	rm -rf $(OBJDIR)
 
 fclean: clean
+	@echo "RM $(LIBA)"
+	rm -rf $(LIBA)
 	@echo "RM $(BINDIR)"
 	rm -rf $(BINDIR)
+	@echo "RM $(RUNDIR)"
 	rm -rf $(RUNDIR)
 
 re: fclean all
