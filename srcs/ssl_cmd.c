@@ -23,7 +23,7 @@ t_ssl_opt	ssl_get_opt(const char * str)
 			str++;
 		}
 	}
-	return (opts);
+	return (*str ? 0 : opts);
 }
 
 t_ssl_cmd	*ssl_get_cmd(char *const name)
