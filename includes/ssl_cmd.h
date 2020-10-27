@@ -1,8 +1,11 @@
 #ifndef SSL_OPTS_H
 # define SSL_OPTS_H
 
+# include <errno.h>
+# include <fcntl.h>
 # include <stdlib.h>
 # include <stdint.h>
+# include <string.h>
 
 # include <unistd.h>
 
@@ -19,13 +22,15 @@ typedef enum	e_ssl_err
 {
 	SSL_EOK = 0,
 	SSL_ENOARG,
-	SSL_EINVAL
+	SSL_EINVAL,
+	SSL_EOPEN,
+	SSL_EALLOC,
 }				t_ssl_err;
 
 typedef char t_ssl_data;
 typedef uint8_t	t_ssl_opt;
 
-typedef t_ssl_err (*t_ssl_exec)(t_ssl_data **dest, t_ssl_data* data,
+typedef t_ssl_err (*t_ssl_exec)(t_ssl_data **dest, const t_ssl_data* data,
 	size_t data_size);
 
 typedef struct	s_ssl_cmd
@@ -35,6 +40,7 @@ typedef struct	s_ssl_cmd
 	t_ssl_opt			opts;
 	int					*fds;
 	const t_ssl_data	*data;
+	const size_t		chunk_size;			
 }               t_ssl_cmd;
 
 

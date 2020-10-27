@@ -1,31 +1,39 @@
 #include <ssl_cmd.h>
 
-t_ssl_err md5_digest(t_ssl_data **dest, t_ssl_data *data, size_t data_size)
+t_ssl_err md5_digest(t_ssl_data **dest, const t_ssl_data *data, size_t data_size)
 {
 	*dest = NULL;
 	write(1, data, data_size);
 	return (SSL_EOK);
 }
 
-t_ssl_opt	ssl_get_opt(char *const str)
+t_ssl_opt	ssl_get_opt(const char * str)
 {
-	int	pos;
+	int			pos;
+	t_ssl_opt	opt;
+	t_ssl_opt	opts = 0;
 
-	if (*str == '-' && (pos = ft_strpos(SSL_OPTS, ++*str)) != -1 && !*str)
+	if (*str == '-')
 	{
-		ft_dprintf(2, "opt: %c\n", --*str);
-		return (1 << pos);
+		str++;
+		while (*str && (pos = ft_strpos(SSL_OPTS, *str)) != -1)
+		{
+			opt = 1 << pos;
+			opts |= opt;
+			str++;
+		}
 	}
-	ft_dprintf(2, "opt: Done!\n");
-	return (0);
+	return (opts);
 }
 
 t_ssl_cmd	*ssl_get_cmd(char *const name)
 {
-	static t_ssl_cmd		cmds[] = {
+	static t_ssl_cmd		cmds[1] = {
 		{
 			.name="md5",
-			.exec=&md5_digest
+			.exec=&md5_digest,
+			.opts=0,
+			.chunk_size=64
 		}
 	};
 	const size_t			len = ft_strlen(name);
@@ -33,14 +41,18 @@ t_ssl_cmd	*ssl_get_cmd(char *const name)
 
 	i = 0;
 	while (i < sizeof(cmds) / sizeof(*cmds))
-		if (!ft_strncmp(cmds[i++].name, name, len))
+	{
+		if (!ft_strncmp(cmds[i].name, name, len))
 			return (&cmds[i]);
+		i++;
+	}
 	return (NULL);
 }
 
 t_ssl_err	ssl_parse_cmd(t_ssl_cmd **cmd, int ac, char *const *av)
 {
 	int			i;
+	int			j;
 	t_ssl_opt	opt;
 
 	i = 1;
@@ -55,12 +67,38 @@ t_ssl_err	ssl_parse_cmd(t_ssl_cmd **cmd, int ac, char *const *av)
 		return (SSL_EINVAL);
 	}
 	i++;
-	while (i < ac && (opt = ssl_get_opt(av[i++])))
+	while (i < ac && (opt = ssl_get_opt(av[i])))
+	{
 		(*cmd)->opts |= opt;
+		i++;
+		if ((*cmd)->opts & SSL_OSTRING)
+		{
+			if (i >= ac)
+			{
+				ft_dprintf(2, "ft_ssl: Error: '-s' option must be followed by a string argument!\n");
+				return (SSL_EINVAL);
+			}
+			(*cmd)->data = av[i++];
+		}
+	}
+	if (!((*cmd)->fds = malloc(sizeof((*cmd)->fds) * (ac - i + 1))))
+	{
+		ft_dprintf(2, "ft_ssl: Error: could not allocate memory!\n");
+		return (SSL_EALLOC);
+	}
+	j = 0;
 	while (i < ac)
 	{
-		ft_dprintf(2, "TODO: Open %s...\n", av[i]);
+		ft_dprintf(2, "Opening %s...\n", av[i]);
+		
+		if (((*cmd)->fds[j] = open(av[i], O_RDONLY)) == -1)
+		{
+			ft_dprintf(2, "ft_ssl: %s: %s!\n", av[i], strerror(errno));
+			return (SSL_EOPEN);
+		}
 		i++;
+		j++;
 	}
+	(*cmd)->fds[j] = -1;
 	return (SSL_EOK);
 }
